@@ -28,7 +28,10 @@ def get_sinusoid(max_len, d_model):
 def load_pe(cfg):
     if cfg['pe_model'] == 'sinusoid':
         return get_sinusoid(cfg['params']['length_pe'], cfg['params']['dimension'])
-    if cfg['pe_model'] == 'roberta-base' or cfg['pe_model'] == 'microsoft/codebert-base':
+    if cfg['pe_model'] == 'roberta-base' or \
+            cfg['pe_model'] == 'microsoft/codebert-base' or \
+            cfg['pe_model'] == 'huggingface/CodeBERTa-small-v1' or \
+            cfg['pe_model'] == 'microsoft/graphcodebert-base':
         pes = AutoModel.from_pretrained(cfg['pe_model']).embeddings.position_embeddings.weight.data[2:]
         return pes[0:cfg['params']['length_pe']]
     else:
@@ -87,9 +90,17 @@ def eigenvalues_analysis(pe):
     u, s, vh = np.linalg.svd(pe, full_matrices=True)
     s = s / np.sum(s)
     s = np.sort(s)[::-1]
-    for i in range(0, 500, 50):
+    for i in range(0, len(s) + 50, 50):
         top_sum = np.sum(s[0:i])
         logger.info(f'Top {i}: {top_sum}')
+
+    data_to_save = {'topx': [], 'accumulation': []}
+    for i in range(0, len(s)):
+        top_sum = np.sum(s[0:i])
+        data_to_save['topx'].append(i)
+        data_to_save['accumulation'].append(top_sum)
+    to_save = pd.DataFrame.from_dict(data_to_save)
+    to_save.to_csv('eigen_accumulation.csv', index=False)
 
 
 def set_seed(seed):
