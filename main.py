@@ -7,11 +7,13 @@ import numpy as np
 import pandas as pd
 import torch
 from omegaconf import DictConfig
+from plotnine import *
 from scipy.spatial.distance import cosine
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import cross_val_score
 from transformers import AutoModel
-from plotnine import *
+
+from probes.position_projection import relative_position_probe
 
 logger = logging.getLogger()
 
@@ -28,12 +30,14 @@ def get_sinusoid(max_len, d_model):
 def load_pe(cfg):
     if cfg['pe_model'] == 'sinusoid':
         return get_sinusoid(cfg['params']['length_pe'], cfg['params']['dimension'])
-    if cfg['pe_model'] == 'roberta-base' or \
+    elif cfg['pe_model'] == 'roberta-base' or \
             cfg['pe_model'] == 'microsoft/codebert-base' or \
             cfg['pe_model'] == 'huggingface/CodeBERTa-small-v1' or \
             cfg['pe_model'] == 'microsoft/graphcodebert-base':
         pes = AutoModel.from_pretrained(cfg['pe_model']).embeddings.position_embeddings.weight.data[2:]
         return pes[0:cfg['params']['length_pe']]
+    elif cfg['pe_model'] == 'random':
+        return torch.randn(cfg['params']['length_pe'], cfg['params']['dimension'])
     else:
         raise ValueError('Only sinusoid, roberta-base and microsoft/codebert-base are supported')
 
@@ -122,6 +126,8 @@ def main(cfg: DictConfig):
         position_wise_cosine_similarity(pe)
     if cfg['analysis'] == 'eigenvalues_analysis':
         eigenvalues_analysis(pe)
+    if cfg['analysis'] == 'relative_position_probe':
+        relative_position_probe(pe)
 
 
 if __name__ == '__main__':
