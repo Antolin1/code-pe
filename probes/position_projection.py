@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from scipy.stats import spearmanr
@@ -8,10 +9,11 @@ from tqdm import tqdm
 
 
 class PositionProjection(nn.Module):
-    def __init__(self, input_dimension):
+    def __init__(self, input_dimension, rank):
         super(PositionProjection, self).__init__()
         self.input_dimension = input_dimension
-        self.proj = nn.Parameter(data=torch.zeros(self.input_dimension, 128))
+        self.rank = rank
+        self.proj = nn.Parameter(data=torch.zeros(self.input_dimension, rank))
         nn.init.uniform_(self.proj, -0.05, 0.05)
 
     def forward(self, pe):
@@ -26,14 +28,12 @@ class PositionProjection(nn.Module):
         return squared_distances
 
 
-def relative_position_probe(pe,
+def relative_position_probe(x, y,
                             train_prop=0.7,
                             epochs=500,
-                            lr=1e-2):
+                            lr=1e-2,
+                            rank=32):
     logger = logging.getLogger()
-
-    y = np.random.permutation(pe.shape[0])
-    x = pe[y]
     dis_y = []
     for y1 in y:
         to_add = []
@@ -46,7 +46,7 @@ def relative_position_probe(pe,
     train_dis_y = torch.tensor(dis_y[0:train_samples, 0:train_samples])
     train_x = torch.tensor(x[0:train_samples])
 
-    model = PositionProjection(pe.shape[1])
+    model = PositionProjection(x.shape[1], rank)
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     for e in tqdm(range(epochs), desc='Epochs'):
@@ -65,8 +65,22 @@ def relative_position_probe(pe,
     pred_all = model(all_x)
     pred_test = pred_all[train_samples:, :]
     test_x = torch.tensor(dis_y[train_samples:, :])
-    logger.info(f'Test MSE: {torch.mean(torch.abs(test_x - pred_test))}')
-    logger.info(f'Test Spearman: {spearman_coefficient(test_x.detach().numpy(), pred_test.detach().numpy())}')
+    test_mse = torch.mean(torch.abs(test_x - pred_test))
+    logger.info(f'Rank {rank} Test MSE: {test_mse}')
+    logger.info(f'Rank {rank} Test Spearman: {spearman_coefficient(test_x.detach().numpy(), pred_test.detach().numpy())}')
+    return test_mse.item()
+
+
+def relative_position_probe_analysis(x, y,
+                                     epochs=500,
+                                     train_prop=0.7,
+                                     lr=1e-2):
+    test_mse = []
+    ranks = [2, 4, 8, 16, 32, 64, 128, 256, 512]
+    for r in ranks:
+        test_mse.append(relative_position_probe(x, y, rank=r, epochs=epochs, lr=lr, train_prop=train_prop))
+    to_save = pd.DataFrame.from_dict({'Rank': ranks, 'MSE': test_mse})
+    to_save.to_csv('relative_position_probe.csv', index=False)
 
 
 def spearman_coefficient(test, pred):

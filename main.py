@@ -13,7 +13,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import cross_val_score
 from transformers import AutoModel
 
-from probes.position_projection import relative_position_probe
+from probes.position_projection import relative_position_probe, relative_position_probe_analysis
 
 logger = logging.getLogger()
 
@@ -127,7 +127,13 @@ def main(cfg: DictConfig):
     if cfg['analysis'] == 'eigenvalues_analysis':
         eigenvalues_analysis(pe)
     if cfg['analysis'] == 'relative_position_probe':
-        relative_position_probe(pe)
+        y = np.random.permutation(pe.shape[0])
+        x = pe[y]
+        relative_position_probe(x, y)
+    if cfg['analysis'] == 'relative_position_probe_analysis':
+        y = np.random.permutation(pe.shape[0])
+        x = pe[y]
+        relative_position_probe_analysis(x, y)
 
 
 if __name__ == '__main__':
