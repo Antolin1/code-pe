@@ -2,6 +2,18 @@
 
 ## Requirements
 
+## Download dataset
+
+Download csn dataset
+```shell
+python dataset_generator.py 
+```
+
+## Tree-sitter grammars
+```shell
+
+```
+
 ## Running experiments
 
 Absolute positions
@@ -23,4 +35,7 @@ SVD decomposition
 ```shell
 python main.py pe_model=microsoft/codebert-base analysis=eigenvalues_analysis
 ```
+
+Probing:
+
 

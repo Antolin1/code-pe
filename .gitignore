@@ -133,3 +133,6 @@ dmypy.json
 /outputs
 *.csv
 *.ipynb
+/grammars
+/dataset
+*.zip
