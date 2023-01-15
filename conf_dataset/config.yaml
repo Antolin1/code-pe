@@ -1,5 +1,0 @@
-pe_model: "microsoft/codebert-base"
-dataset_dir: "dataset"
-download_csn: True
-language: "python"
-seed: 123

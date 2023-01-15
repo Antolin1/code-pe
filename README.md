@@ -2,40 +2,27 @@
 
 ## Requirements
 
-## Download dataset
 
-Download csn dataset
-```shell
-python dataset_generator.py 
-```
-
-## Tree-sitter grammars
-```shell
-
-```
 
 ## Running experiments
 
 Absolute positions
 ```shell
-python main.py pe_model=microsoft/codebert-base analysis=absolute_position
+python main_analysis.py pe_model=microsoft/codebert-base analysis=absolute_position
 ```
 
 Relative positions
 ```shell
-python main.py pe_model=microsoft/codebert-base analysis=relative_position
+python main_analysis.py pe_model=microsoft/codebert-base analysis=relative_position
 ```
 
 Position wise cosine similarity
 ```shell
-python main.py pe_model=microsoft/codebert-base analysis=position_wise_cosine_similarity
+python main_analysis.py pe_model=microsoft/codebert-base analysis=position_wise_cosine_similarity
 ```
 
 SVD decomposition
 ```shell
-python main.py pe_model=microsoft/codebert-base analysis=eigenvalues_analysis
+python main_analysis.py pe_model=microsoft/codebert-base analysis=eigenvalues_analysis
 ```
-
-Probing:
-
 

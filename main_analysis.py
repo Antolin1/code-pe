@@ -29,15 +29,18 @@ def get_sinusoid(max_len, d_model):
 
 def load_pe(cfg):
     if cfg['pe_model'] == 'sinusoid':
-        return get_sinusoid(cfg['params']['length_pe'], cfg['params']['dimension'])
+        return get_sinusoid(cfg['length_pe'], cfg['dimension'])
     elif cfg['pe_model'] == 'roberta-base' or \
             cfg['pe_model'] == 'microsoft/codebert-base' or \
             cfg['pe_model'] == 'huggingface/CodeBERTa-small-v1' or \
             cfg['pe_model'] == 'microsoft/graphcodebert-base':
         pes = AutoModel.from_pretrained(cfg['pe_model']).embeddings.position_embeddings.weight.data[2:]
-        return pes[0:cfg['params']['length_pe']]
+        return pes[0:cfg['length_pe']]
     elif cfg['pe_model'] == 'random':
-        return torch.randn(cfg['params']['length_pe'], cfg['params']['dimension'])
+        return torch.randn(cfg['length_pe'], cfg['dimension'])
+    elif cfg['pe_model'] == 'gpt2':
+        pes = AutoModel.from_pretrained(cfg['pe_model']).wpe.weight.data[0:cfg['length_pe']]
+        return pes
     else:
         raise ValueError('Only sinusoid, roberta-base and microsoft/codebert-base are supported')
 
@@ -114,9 +117,9 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+@hydra.main(version_base=None, config_path="conf_analysis", config_name="config")
 def main(cfg: DictConfig):
-    set_seed(cfg['params']['seed'])
+    set_seed(cfg['seed'])
     pe = load_pe(cfg).numpy()
     if cfg['analysis'] == 'absolute_position':
         absolute_position_analysis(pe)

@@ -136,3 +136,4 @@ dmypy.json
 /grammars
 /dataset
 *.zip
+/script_outputs/
