@@ -1,14 +1,17 @@
 import logging
 import os
+import random
 
 import hydra
+import numpy as np
+import torch
 from omegaconf import DictConfig
-from transformers import AutoTokenizer, RobertaTokenizerFast
+from transformers import RobertaTokenizerFast
 
 from data import read_datasets, tokenize_dataset
-from train_tokenizer import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN
 from model.builder import build_model, build_model_checkpoint
 from model.trainer import train, eval_test
+from train_tokenizer import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN
 
 
 def check_tokens(tokenizer):
@@ -28,9 +31,25 @@ def load_tokenizer(cfg):
     return tokenizer
 
 
+def set_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
+    torch.use_deterministic_algorithms(True)
+
+    # Enable CUDNN deterministic mode
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
 @hydra.main(version_base=None, config_path=".", config_name="config")
 def main(cfg: DictConfig):
     logger = logging.getLogger()
+    set_seed(cfg["seed"])
 
     # load datasets
     train_set, valid_set, test_set = read_datasets(cfg)

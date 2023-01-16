@@ -1,3 +1,4 @@
 vocab_size: 50000
 tokenizer_checkpoint: "tokenizer_checkpoint"
 dataset_dir: "dataset"
+seed: 123

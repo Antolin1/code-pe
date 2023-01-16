@@ -34,6 +34,8 @@ def train_tokenizer(train_set, cfg):
 @hydra.main(version_base=None, config_path=".", config_name="config_tokenizer")
 def main(cfg: DictConfig):
     logger = logging.getLogger()
+    from main import set_seed
+    set_seed(cfg["seed"])
 
     train_set, _, _ = read_datasets(cfg)
     logger.info(f'Training samples {len(train_set)}')
