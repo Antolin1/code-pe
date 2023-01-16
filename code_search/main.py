@@ -50,7 +50,7 @@ def main(cfg: DictConfig):
 
     print(train_set)
     model = build_model(len(code_tokenizer), d_model=768, max_len=512, pe='random', nl_hg_model='distilroberta-base')
-    train(train_set, valid_set, model, cfg["checkpoint"], batch_size=16, lr=1e-4, epochs=30, patience=5)
+    train(train_set, valid_set, model, cfg["checkpoint"], batch_size=16, lr=1e-5, epochs=30, patience=5)
 
 
 if __name__ == '__main__':
