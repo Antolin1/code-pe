@@ -21,4 +21,4 @@ def tokenize_dataset(dataset, tokenizer, max_len):
     return dataset.map(lambda examples: tokenize_function(examples,
                                                           tokenizer=tokenizer,
                                                           max_len=max_len),
-                       batched=True).remove_columns(["project", "commit_id", "func", "idx"])
+                       batched=True, load_from_cache_file=False).remove_columns(["project", "commit_id", "func", "idx"])

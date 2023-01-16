@@ -12,6 +12,12 @@ gdown https://drive.google.com/uc?id=1x6hoF7G-tSYxg8AFybggypLZgMGDNHfF
 python preprocess.py
 ```
 
+Code search:
+```shell
+cd code_search
+./download_dataset.sh
+```
+
 ## Training models for code tasks
 
 Defect prediciton

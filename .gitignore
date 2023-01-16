@@ -144,3 +144,5 @@ dmypy.json
 /defect_prediction/outputs/
 *.bin
 /defect_prediction/tokenizer_checkpoint/
+/code_search/outputs/
+/code_search/dataset/

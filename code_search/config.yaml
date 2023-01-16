@@ -1,0 +1,4 @@
+seed: 123
+dataset_dir: "dataset"
+lang: "python"
+checkpoint: "test.bin"
