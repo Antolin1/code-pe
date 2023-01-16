@@ -14,26 +14,13 @@ python preprocess.py
 
 ## Training models for code tasks
 
-Random embeddings
+Defect prediciton
 ```shell
 cd defect_prediction
-python main.py mode=training pe_embeddings=random checkpoint=random_pe_embeddings.bin
-python main.py mode=testing pe_embeddings=random checkpoint=random_pe_embeddings.bin
+./run_train.sh
+./run_test.sh
 ```
 
-Sinusoid embeddings
-```shell
-cd defect_prediction
-python main.py mode=training pe_embeddings=sinusoid checkpoint=sinusoid_pe_embeddings.bin
-python main.py mode=testing pe_embeddings=sinusoid checkpoint=sinusoid_pe_embeddings.bin
-```
-
-gpt-2
-```shell
-cd defect_prediction
-python main.py mode=training pe_embeddings=gpt2 checkpoint=gpt2_pe_embeddings.bin
-python main.py mode=testing pe_embeddings=gpt2 checkpoint=gpt2_pe_embeddings.bin
-```
 
 ## Running analysis
 
