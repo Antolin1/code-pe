@@ -137,3 +137,10 @@ dmypy.json
 /dataset
 *.zip
 /script_outputs/
+/defect_prediction/dataset/function.json
+/defect_prediction/dataset/test.jsonl
+/defect_prediction/dataset/train.jsonl
+/defect_prediction/dataset/valid.jsonl
+/defect_prediction/outputs/
+*.bin
+/defect_prediction/tokenizer_checkpoint/

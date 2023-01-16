@@ -2,9 +2,27 @@
 
 ## Requirements
 
+## Datasets
+
+Defect prediction:
+```shell
+cd defect_prediction/dataset
+pip install gdown
+gdown https://drive.google.com/uc?id=1x6hoF7G-tSYxg8AFybggypLZgMGDNHfF
+python preprocess.py
+```
+
+## Training models for code tasks
+
+Defect prediciton
+```shell
+cd defect_prediction
+./run_train.sh
+./run_test.sh
+```
 
 
-## Running experiments
+## Running analysis
 
 Absolute positions
 ```shell

@@ -1,0 +1,7 @@
+dataset_dir: "dataset"
+tokenizer_hg: "microsoft/codebert-base"
+mode: "training"
+pe_embeddings: "random"
+checkpoint: "random_pe_embeddings.bin"
+tokenizer_checkpoint: "tokenizer_checkpoint"
+seed: 123
