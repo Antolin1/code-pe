@@ -3,3 +3,4 @@ analysis: "absolute_position"
 length_pe: 512
 dimension: 768
 seed: 123
+interval: 512

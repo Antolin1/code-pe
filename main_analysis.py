@@ -1,3 +1,4 @@
+import itertools
 import logging
 import math
 import random
@@ -110,6 +111,18 @@ def eigenvalues_analysis(pe):
     to_save.to_csv('eigen_accumulation.csv', index=False)
 
 
+def interval_similarity(pe, interval):
+    dis = []
+    cos = []
+    for i, j in itertools.combinations(range(0, pe.shape[0]), 2):
+        if abs(i - j) < interval:
+            cosine_sim = 1. - cosine(pe[i], pe[j])
+            dis.append(abs(i - j))
+            cos.append(cosine_sim)
+    to_save = pd.DataFrame.from_dict({'dis': dis, 'cos': cos})
+    to_save.to_csv('nearby_similarity.csv', index=False)
+
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -137,6 +150,8 @@ def main(cfg: DictConfig):
         y = np.random.permutation(pe.shape[0])
         x = pe[y]
         relative_position_probe_analysis(x, y)
+    if cfg['analysis'] == 'interval_similarity':
+        interval_similarity(pe, cfg['interval'])
 
 
 if __name__ == '__main__':
