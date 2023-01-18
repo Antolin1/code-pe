@@ -146,3 +146,4 @@ dmypy.json
 /defect_prediction/tokenizer_checkpoint/
 /code_search/outputs/
 /code_search/dataset/
+/code_search/wandb/

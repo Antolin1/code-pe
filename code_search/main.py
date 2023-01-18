@@ -5,12 +5,13 @@ import random
 import hydra
 import numpy as np
 import torch
+import wandb
 from omegaconf import DictConfig
 from transformers import AutoTokenizer
 
 from data import read_datasets, tokenize_dataset
-from model.trainer import train
-from model.builder import build_model
+from model.trainer import train, eval_test
+from model.builder import build_model, build_model_checkpoint
 
 
 def set_seed(seed: int):
@@ -34,7 +35,7 @@ def load_tokenizers():
     return nl_tokenizer, code_tokenizer
 
 
-@hydra.main(version_base=None, config_path=".", config_name="config")
+@hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: DictConfig):
     logger = logging.getLogger()
     set_seed(cfg["seed"])
@@ -45,12 +46,26 @@ def main(cfg: DictConfig):
     logger.info(f'Test samples {len(test_set)}')
 
     nl_tokenizer, code_tokenizer = load_tokenizers()
-    train_set = tokenize_dataset(train_set, nl_tokenizer, code_tokenizer, 512, 128, 'code', 'nl')
-    valid_set = tokenize_dataset(valid_set, nl_tokenizer, code_tokenizer, 512, 128, 'code', 'nl')
+    if cfg["mode"] == "training":
+        train_set = tokenize_dataset(train_set, nl_tokenizer, code_tokenizer, 512, 128, 'code', 'nl')
+        valid_set = tokenize_dataset(valid_set, nl_tokenizer, code_tokenizer, 512, 128, 'code', 'nl')
 
-    print(train_set)
-    model = build_model(len(code_tokenizer), d_model=768, max_len=512, pe='random', nl_hg_model='distilroberta-base')
-    train(train_set, valid_set, model, cfg["checkpoint"], batch_size=16, lr=1e-5, epochs=30, patience=5)
+        model = build_model(len(code_tokenizer), d_model=768, max_len=512, pe='random',
+                            nl_hg_model='distilroberta-base')
+
+        if cfg["wandb"]:
+            wandb.init(project=cfg["wandb_params"]["project"],
+                       entity=cfg["wandb_params"]["entity"],
+                       name="test")
+        train(train_set, valid_set, model, cfg["checkpoint"], wandb_enabled=cfg["wandb"])
+    elif cfg["mode"] == "testing":
+        test_set = tokenize_dataset(test_set, nl_tokenizer, code_tokenizer, 512, 128, 'code', 'nl')
+
+        model = build_model_checkpoint(len(code_tokenizer), cfg["checkpoint"], d_model=768, max_len=512, pe='random',
+                                       nl_hg_model='distilroberta-base')
+        eval_test(test_set, model, batch_size=64)
+    else:
+        raise ValueError("Only training and testing model allowed")
 
 
 if __name__ == '__main__':
