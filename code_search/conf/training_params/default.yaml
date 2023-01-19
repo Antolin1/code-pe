@@ -1,0 +1,10 @@
+batch_size_train: 32
+batch_size_eval: 64
+block_size_nl: 256
+block_size_code: 256
+lr: 5e-5
+epochs: 50
+patience: 5
+gradient_accumulation: 1
+max_grad_norm: 1
+log_steps: 500

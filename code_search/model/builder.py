@@ -14,15 +14,15 @@ def get_sinusoid(max_len, d_model):
     return pe
 
 
-class CodeTransformerEncoder(nn.Module):
+class TransformerEncoder(nn.Module):
     def __init__(self, embedding, nhead=8, dim_feedforward=512,
-                 dropout=0.1):
+                 dropout=0.1, n_layers=1):
         super().__init__()
         d_model = embedding.dim
         self.embedding = embedding
         layer = nn.TransformerEncoderLayer(
             d_model, nhead, dim_feedforward, dropout)
-        self.encoder = nn.TransformerEncoder(layer, 1,
+        self.encoder = nn.TransformerEncoder(layer, n_layers,
                                              nn.LayerNorm(d_model))
         self.d_model = d_model
 
@@ -70,42 +70,51 @@ class DualEconderModel(nn.Module):
     def forward(self, input_ids_code, inputs_ids_nl,
                 attention_mask_code, attention_mask_nl):
         emb_code = self.code_encoder(input_ids_code, attention_mask_code)
-        emb_nl = self.nl_encoder(input_ids=inputs_ids_nl, attention_mask=attention_mask_nl)['pooler_output']
+        emb_nl = self.nl_encoder(inputs_ids_nl, attention_mask_nl)
         return emb_code, emb_nl
 
 
-def build_model(vocab_size, d_model=768, max_len=512, pe='random', nl_hg_model='distilroberta-base'):
+def build_model(vocab_size_code, vocab_size_nl, cfg):
+    pe = cfg["pe_model"]
+    max_len = cfg["training_params"]["block_size_code"]
+    d_model = cfg["model_params"]["d_model_code"]
     if pe == 'random':
-        embedding = PositionEmbedding(vocab_size, max_len=max_len, dim=d_model)
+        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
     elif pe == 'sinusoid':
-        embedding = PositionEmbedding(vocab_size, max_len=max_len, dim=d_model)
+        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
         sinusoid_pe = get_sinusoid(max_len, d_model)
-        embedding.pos_emb.weight.data = sinusoid_pe
-        embedding.pos_emb.weight.requires_grad = False
+        embedding_code.pos_emb.weight.data = sinusoid_pe
+        embedding_code.pos_emb.weight.requires_grad = False
     elif pe == 'gpt2':
-        embedding = PositionEmbedding(vocab_size, max_len=max_len, dim=d_model)
+        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
         gpt2_pe = AutoModel.from_pretrained(pe).wpe.weight.data[0:max_len]
-        embedding.pos_emb.weight.data = gpt2_pe
-        embedding.pos_emb.weight.requires_grad = False
+        embedding_code.pos_emb.weight.data = gpt2_pe
+        embedding_code.pos_emb.weight.requires_grad = False
     elif pe == 'microsoft/codebert-base' or pe == 'roberta-base' or pe == 'huggingface/CodeBERTa-small-v1':
-        embedding = PositionEmbedding(vocab_size, max_len=max_len, dim=d_model)
+        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
         pt_pe = AutoModel.from_pretrained(pe).embeddings.position_embeddings.weight.data[2:]
-        embedding.pos_emb.weight.data = pt_pe
-        embedding.pos_emb.weight.requires_grad = False
+        embedding_code.pos_emb.weight.data = pt_pe
+        embedding_code.pos_emb.weight.requires_grad = False
     elif pe == 'bow':
-        embedding = PositionEmbedding(vocab_size, max_len=max_len, dim=d_model)
-        embedding.pos_emb.weight.data = torch.zeros(max_len, d_model)
-        embedding.pos_emb.weight.requires_grad = False
+        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
+        embedding_code.pos_emb.weight.data = torch.zeros(max_len, d_model)
+        embedding_code.pos_emb.weight.requires_grad = False
     else:
         raise ValueError(f'PE {pe} not supported')
-    code_encoder = CodeTransformerEncoder(embedding)
-    nl_encoder = AutoModel.from_pretrained(nl_hg_model)
+    code_encoder = TransformerEncoder(embedding_code, nhead=cfg["model_params"]["n_head_code"],
+                                      dim_feedforward=cfg["model_params"]["dim_feedforward_code"],
+                                      n_layers=cfg["model_params"]["n_layers_code"])
+    # TODO custom model for nl
+    embedding_nl = PositionEmbedding(vocab_size_nl, max_len=cfg["training_params"]["block_size_nl"],
+                                     dim=cfg["model_params"]["d_model_nl"])
+    nl_encoder = TransformerEncoder(embedding_nl, nhead=cfg["model_params"]["n_head_nl"],
+                                    dim_feedforward=cfg["model_params"]["dim_feedforward_nl"],
+                                    n_layers=cfg["model_params"]["n_layers_nl"])
     model = DualEconderModel(code_encoder, nl_encoder)
     return model
 
 
-def build_model_checkpoint(vocab_size, checkpoint, d_model=768, max_len=512, pe='random',
-                           nl_hg_model='distilroberta-base'):
-    model = build_model(vocab_size, d_model, max_len, pe, nl_hg_model)
-    model.load_state_dict(torch.load(checkpoint))
+def build_model_checkpoint(vocab_size_code, vocab_size_nl, cfg):
+    model = build_model(vocab_size_code, vocab_size_nl, cfg)
+    model.load_state_dict(torch.load(cfg["checkpoint"]))
     return model

@@ -27,9 +27,9 @@ def read_datasets(cfg):
     test_set = test_set.map(lambda sample: {'code': preprocess_tokens(sample['code_tokens']),
                                             'nl': preprocess_tokens(sample['docstring_tokens'])}) \
         .remove_columns(['docstring_tokens', 'code_tokens'])
-    train_set = train_set.shuffle(seed=cfg["seed"]).select(range(0, 50000))
-    test_set = test_set.shuffle(seed=cfg["seed"]).select(range(0, 5000))
-    valid_set = valid_set.shuffle(seed=cfg["seed"]).select(range(0, 3000))
+    # train_set = train_set.shuffle(seed=cfg["seed"]).select(range(0, 50000))
+    # test_set = test_set.shuffle(seed=cfg["seed"]).select(range(0, 5000))
+    # valid_set = valid_set.shuffle(seed=cfg["seed"]).select(range(0, 3000))
     return train_set, valid_set, test_set
 
 

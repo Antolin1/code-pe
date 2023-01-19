@@ -1,0 +1,6 @@
+vocab_size: 10000
+tokenizer_nl_checkpoint: "tokenizer_nl_checkpoint"
+tokenizer_code_checkpoint: "tokenizer_code_checkpoint"
+dataset_dir: "dataset"
+seed: 123
+lang: "ruby"

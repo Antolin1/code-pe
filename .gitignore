@@ -147,3 +147,5 @@ dmypy.json
 /code_search/outputs/
 /code_search/dataset/
 /code_search/wandb/
+/code_search/tokenizer_code_checkpoint/
+/code_search/tokenizer_nl_checkpoint/

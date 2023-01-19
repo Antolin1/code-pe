@@ -1,0 +1,9 @@
+n_layers_code: 1
+dim_feedforward_code: 512
+d_model_code: 768
+n_head_code: 8
+
+n_layers_nl: 1
+dim_feedforward_nl: 512
+d_model_nl: 768
+n_head_nl: 8

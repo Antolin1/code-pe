@@ -1,9 +1,14 @@
 seed: 123
 dataset_dir: "dataset"
-lang: "python"
+lang: "ruby"
 checkpoint: "test.bin"
 mode: "training"
+pe_model: "random"
+tokenizer_nl_checkpoint: "tokenizer_nl_checkpoint"
+tokenizer_code_checkpoint: "tokenizer_code_checkpoint"
 
 wandb: True
 defaults:
   - wandb_params: wandb_ja
+  - model_params: default
+  - training_params: default
