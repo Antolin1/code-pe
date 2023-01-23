@@ -5,7 +5,7 @@ import hydra
 from omegaconf import DictConfig
 from tokenizers.implementations import ByteLevelBPETokenizer
 
-from data import read_datasets
+from data import read_train_val_datasets
 
 
 def batch_iterator(dataset, batch_size=100, column="code"):
@@ -47,7 +47,7 @@ def main(cfg: DictConfig):
     from main import set_seed
     set_seed(cfg["seed"])
 
-    train_set, _, _ = read_datasets(cfg)
+    train_set, _, _ = read_train_val_datasets(cfg)
     logger.info(f'Training samples {len(train_set)}')
     train_tokenizers(train_set, cfg)
 

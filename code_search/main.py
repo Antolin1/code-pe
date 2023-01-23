@@ -6,13 +6,12 @@ import hydra
 import numpy as np
 import torch
 from omegaconf import DictConfig
-from transformers import RobertaTokenizerFast, AutoTokenizer
+from transformers import AutoTokenizer
 
 import wandb
-from data import read_datasets, tokenize_dataset
+from data import read_train_val_datasets, tokenize_dataset, read_test_set
 from model.builder import build_model, build_model_checkpoint
 from model.trainer import train, eval_test
-from train_tokenizers import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN
 
 
 def set_seed(seed: int):
@@ -30,20 +29,7 @@ def set_seed(seed: int):
     torch.backends.cudnn.benchmark = False
 
 
-def load_tokenizers(cfg):
-    nl_tokenizer = RobertaTokenizerFast(vocab_file=os.path.join(cfg['tokenizer_nl_checkpoint'],
-                                                                'vocab.json'),
-                                        merges_file=os.path.join(cfg['tokenizer_nl_checkpoint'],
-                                                                 'merges.txt'),
-                                        bos_token=BOS_TOKEN, eos_token=EOS_TOKEN,
-                                        pad_token=PAD_TOKEN, unk_token=UNK_TOKEN)
-    code_tokenizer = RobertaTokenizerFast(vocab_file=os.path.join(cfg['tokenizer_code_checkpoint'],
-                                                                  'vocab.json'),
-                                          merges_file=os.path.join(cfg['tokenizer_code_checkpoint'],
-                                                                   'merges.txt'),
-                                          bos_token=BOS_TOKEN, eos_token=EOS_TOKEN,
-                                          pad_token=PAD_TOKEN, unk_token=UNK_TOKEN)
-
+def load_tokenizers():
     nl_tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base")
     code_tokenizer = nl_tokenizer
     return nl_tokenizer, code_tokenizer
@@ -54,14 +40,11 @@ def main(cfg: DictConfig):
     logger = logging.getLogger()
     set_seed(cfg["seed"])
 
-    train_set, valid_set, test_set = read_datasets(cfg)
-    logger.info(f'Training samples {len(train_set)}')
-    logger.info(f'Valid samples {len(valid_set)}')
-    logger.info(f'Test samples {len(test_set)}')
-
-    nl_tokenizer, code_tokenizer = load_tokenizers(cfg)
+    nl_tokenizer, code_tokenizer = load_tokenizers()
     if cfg["mode"] == "training":
-        # TODO load parameters of the conifg
+        train_set, valid_set = read_train_val_datasets(cfg)
+        logger.info(f'Training samples {len(train_set)}')
+        logger.info(f'Valid samples {len(valid_set)}')
         train_set = tokenize_dataset(train_set, nl_tokenizer,
                                      code_tokenizer,
                                      cfg["training_params"]["block_size_code"],
@@ -73,12 +56,18 @@ def main(cfg: DictConfig):
                                      cfg["training_params"]["block_size_nl"],
                                      'code', 'nl')
 
-        model = build_model(len(code_tokenizer), len(nl_tokenizer), cfg)
+        model = build_model(code_tokenizer, nl_tokenizer, cfg)
 
         if cfg["wandb"]:
+            config = {
+                "n_layers": cfg["model_params"]["n_layers"],
+                "bach_size_train": cfg["training_params"]["batch_size_train"],
+                "lr": cfg["training_params"]["lr"]
+            }
             wandb.init(project=cfg["wandb_params"]["project"],
                        entity=cfg["wandb_params"]["entity"],
-                       name=cfg["pe_model"])
+                       name=cfg["pe_model"],
+                       config=config)
         train(train_set=train_set,
               valid_set=valid_set,
               model=model,
@@ -93,13 +82,16 @@ def main(cfg: DictConfig):
               wandb_enabled=cfg["wandb"],
               log_steps=cfg["training_params"]["log_steps"])
     elif cfg["mode"] == "testing":
+        test_set = read_test_set(cfg)
+        logger.info(f'Test samples of lang {cfg["lang_eval"]}: {len(test_set)}')
+        logger.info(f'Distractors: {cfg["training_params"]["batch_size_eval"] - 1}')
         test_set = tokenize_dataset(test_set, nl_tokenizer,
                                     code_tokenizer,
                                     cfg["training_params"]["block_size_code"],
                                     cfg["training_params"]["block_size_nl"],
                                     'code', 'nl')
 
-        model = build_model_checkpoint(len(code_tokenizer), len(nl_tokenizer), cfg)
+        model = build_model_checkpoint(code_tokenizer, nl_tokenizer, cfg)
         eval_test(test_set, model, batch_size=cfg["training_params"]["batch_size_eval"])
     else:
         raise ValueError("Only training and testing model allowed")

@@ -1,6 +1,6 @@
 import os
 
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 
 
 def preprocess_tokens(tokens):
@@ -9,28 +9,53 @@ def preprocess_tokens(tokens):
     return stc
 
 
-def read_datasets(cfg):
-    data_files = {'train': os.path.join(cfg["dataset_dir"], cfg["lang"], 'train.jsonl'),
-                  'valid': os.path.join(cfg["dataset_dir"], cfg["lang"], 'valid.jsonl'),
-                  'test': os.path.join(cfg["dataset_dir"], cfg["lang"], 'test.jsonl')}
-    columns_to_remove = ['repo', 'path', 'func_name', 'original_string', 'language', 'sha', 'url',
-                         'partition', 'code', 'docstring']
-    train_set = load_dataset('json', data_files=data_files, split='train').remove_columns(columns_to_remove)
+LANGUAGES = ('python',
+             'javascript',
+             'go', 'ruby',
+             'java',
+             'php')
+
+COLUMNS_TO_REMOVE = ['repo', 'path', 'func_name', 'original_string', 'language', 'sha', 'url',
+                     'partition', 'code', 'docstring']
+
+
+def read_train_val_datasets(cfg, samples_per_lang_train=25000, samples_per_lang_eval=1000):
+    train_datasets = []
+    val_datasets = []
+    for language in LANGUAGES:
+        data_files = {'train': os.path.join(cfg["dataset_dir"], language, 'train.jsonl'),
+                      'valid': os.path.join(cfg["dataset_dir"], language, 'valid.jsonl')}
+
+        train_set = load_dataset('json', data_files=data_files, split='train').remove_columns(COLUMNS_TO_REMOVE)
+        train_set = train_set.shuffle(seed=cfg["seed"]).select(range(0, min(len(train_set), samples_per_lang_train)))
+        train_datasets.append(train_set)
+
+        valid_set = load_dataset('json', data_files=data_files, split='valid').remove_columns(COLUMNS_TO_REMOVE)
+        valid_set = valid_set.shuffle(seed=cfg["seed"]).select(range(0, min(len(valid_set), samples_per_lang_eval)))
+        val_datasets.append(valid_set)
+
+    train_set = concatenate_datasets(train_datasets)
+    valid_set = concatenate_datasets(val_datasets)
     train_set = train_set.map(lambda sample: {'code': preprocess_tokens(sample['code_tokens']),
                                               'nl': preprocess_tokens(sample['docstring_tokens'])}) \
         .remove_columns(['docstring_tokens', 'code_tokens'])
-    valid_set = load_dataset('json', data_files=data_files, split='valid').remove_columns(columns_to_remove)
+
     valid_set = valid_set.map(lambda sample: {'code': preprocess_tokens(sample['code_tokens']),
                                               'nl': preprocess_tokens(sample['docstring_tokens'])}) \
-        .remove_columns(['docstring_tokens', 'code_tokens'])
-    test_set = load_dataset('json', data_files=data_files, split='test').remove_columns(columns_to_remove)
-    test_set = test_set.map(lambda sample: {'code': preprocess_tokens(sample['code_tokens']),
-                                            'nl': preprocess_tokens(sample['docstring_tokens'])}) \
         .remove_columns(['docstring_tokens', 'code_tokens'])
     # train_set = train_set.shuffle(seed=cfg["seed"]).select(range(0, 50000))
     # test_set = test_set.shuffle(seed=cfg["seed"]).select(range(0, 5000))
     # valid_set = valid_set.shuffle(seed=cfg["seed"]).select(range(0, 3000))
-    return train_set, valid_set, test_set
+    return train_set, valid_set
+
+
+def read_test_set(cfg):
+    data_files = {'test': os.path.join(cfg["dataset_dir"], cfg["lang_eval"], 'test.jsonl')}
+    test_set = load_dataset('json', data_files=data_files, split='test').remove_columns(COLUMNS_TO_REMOVE)
+    test_set = test_set.map(lambda sample: {'code': preprocess_tokens(sample['code_tokens']),
+                                            'nl': preprocess_tokens(sample['docstring_tokens'])}) \
+        .remove_columns(['docstring_tokens', 'code_tokens'])
+    return test_set
 
 
 def tokenize_function(examples, tokenizer, max_len, column):

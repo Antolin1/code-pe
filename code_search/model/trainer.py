@@ -4,10 +4,10 @@ import evaluate
 import numpy as np
 import torch
 import wandb
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchmetrics.functional import retrieval_reciprocal_rank
 from tqdm import tqdm
+from transformers import AdamW, get_linear_schedule_with_warmup
 
 logger = logging.getLogger()
 
@@ -21,7 +21,8 @@ def train(train_set, valid_set, model, checkpoint, batch_size_train=16, lr=5e-5,
     eval_dataloader = DataLoader(valid_set, batch_size=batch_size_eval, shuffle=False)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model.to(device)
-    optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
+    optimizer = AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, eps=1e-8)
+
     criterion = torch.nn.CrossEntropyLoss()
 
     logger.info('Training phase!')
@@ -33,6 +34,8 @@ def train(train_set, valid_set, model, checkpoint, batch_size_train=16, lr=5e-5,
     best_mrr = -float('inf')
     patience_count = 0
     num_training_steps = epochs * len(train_dataloader)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=num_training_steps * 0.1,
+                                                num_training_steps=num_training_steps)
     progress_bar = tqdm(range(num_training_steps))
     steps = 0
     for epoch in range(1, epochs + 1):
@@ -55,6 +58,7 @@ def train(train_set, valid_set, model, checkpoint, batch_size_train=16, lr=5e-5,
             if ((j + 1) % gradient_accumulation == 0) or (j + 1 == len(train_dataloader)):
                 optimizer.step()
                 optimizer.zero_grad()
+                scheduler.step()
 
             progress_bar.update(1)
             steps += 1
@@ -77,6 +81,8 @@ def train(train_set, valid_set, model, checkpoint, batch_size_train=16, lr=5e-5,
             logger.info(f'Model saved: {checkpoint} Best mrr {mrr:.4f}')
             patience_count = 0
             best_mrr = mrr
+            if wandb_enabled:
+                wandb.run.summary["best_mrr"] = best_mrr
         else:
             patience_count += 1
         if patience_count == patience:

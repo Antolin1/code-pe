@@ -39,7 +39,7 @@ def load_pe(cfg):
         return pes[0:cfg['length_pe']]
     elif cfg['pe_model'] == 'random':
         return torch.randn(cfg['length_pe'], cfg['dimension'])
-    elif cfg['pe_model'] == 'gpt2':
+    elif cfg['pe_model'] == 'gpt2' or cfg['pe_model'] == 'microsoft/CodeGPT-small-java':
         pes = AutoModel.from_pretrained(cfg['pe_model']).wpe.weight.data[0:cfg['length_pe']]
         return pes
     else:

@@ -2,7 +2,7 @@ import math
 
 import torch
 import torch.nn as nn
-from transformers import AutoModel
+from transformers import AutoModel, AutoConfig, RobertaModel
 
 
 def get_sinusoid(max_len, d_model):
@@ -71,50 +71,51 @@ class DualEconderModel(nn.Module):
                 attention_mask_code, attention_mask_nl):
         emb_code = self.code_encoder(input_ids_code, attention_mask_code)
         emb_nl = self.nl_encoder(inputs_ids_nl, attention_mask_nl)
-        return emb_code, emb_nl
+        return emb_code['pooler_output'], emb_nl['pooler_output']
 
 
-def build_model(vocab_size_code, vocab_size_nl, cfg):
-    pe = cfg["pe_model"]
-    max_len = cfg["training_params"]["block_size_code"]
-    d_model = cfg["model_params"]["d_model_code"]
-    if pe == 'random':
-        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
-    elif pe == 'sinusoid':
-        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
-        sinusoid_pe = get_sinusoid(max_len, d_model)
-        embedding_code.pos_emb.weight.data = sinusoid_pe
-        embedding_code.pos_emb.weight.requires_grad = False
-    elif pe == 'gpt2':
-        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
-        gpt2_pe = AutoModel.from_pretrained(pe).wpe.weight.data[0:max_len]
-        embedding_code.pos_emb.weight.data = gpt2_pe
-        embedding_code.pos_emb.weight.requires_grad = False
-    elif pe == 'microsoft/codebert-base' or pe == 'roberta-base' or pe == 'huggingface/CodeBERTa-small-v1':
-        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
-        pt_pe = AutoModel.from_pretrained(pe).embeddings.position_embeddings.weight.data[2:]
-        embedding_code.pos_emb.weight.data = pt_pe
-        embedding_code.pos_emb.weight.requires_grad = False
-    elif pe == 'bow':
-        embedding_code = PositionEmbedding(vocab_size_code, max_len=max_len, dim=d_model)
-        embedding_code.pos_emb.weight.data = torch.zeros(max_len, d_model)
-        embedding_code.pos_emb.weight.requires_grad = False
-    else:
-        raise ValueError(f'PE {pe} not supported')
-    code_encoder = TransformerEncoder(embedding_code, nhead=cfg["model_params"]["n_head_code"],
-                                      dim_feedforward=cfg["model_params"]["dim_feedforward_code"],
-                                      n_layers=cfg["model_params"]["n_layers_code"])
-    # TODO custom model for nl
-    embedding_nl = PositionEmbedding(vocab_size_nl, max_len=cfg["training_params"]["block_size_nl"],
-                                     dim=cfg["model_params"]["d_model_nl"])
-    nl_encoder = TransformerEncoder(embedding_nl, nhead=cfg["model_params"]["n_head_nl"],
-                                    dim_feedforward=cfg["model_params"]["dim_feedforward_nl"],
-                                    n_layers=cfg["model_params"]["n_layers_nl"])
+def build_model(tokenizer_code, tokenizer_nl, cfg):
+    roberta_config_nl = AutoConfig.from_pretrained('roberta-base')
+    roberta_config_nl.vocab_size = len(tokenizer_nl)
+    roberta_config_nl.max_position_embeddings = cfg["training_params"]["block_size_nl"] + 2
+    roberta_config_nl.pad_token_id = tokenizer_nl.convert_tokens_to_ids(tokenizer_nl.pad_token)
+    roberta_config_nl.sep_token_id = tokenizer_nl.convert_tokens_to_ids(tokenizer_nl.sep_token)
+    roberta_config_nl.eos_token_id = tokenizer_nl.convert_tokens_to_ids(tokenizer_nl.eos_token)
+    roberta_config_nl.num_hidden_layers = cfg["model_params"]["n_layers"]
+    nl_encoder = RobertaModel(roberta_config_nl)
+
+    roberta_config_code = AutoConfig.from_pretrained('roberta-base')
+    roberta_config_code.vocab_size = len(tokenizer_code)
+    roberta_config_code.max_position_embeddings = cfg["training_params"]["block_size_code"] + 2
+    roberta_config_code.pad_token_id = tokenizer_code.convert_tokens_to_ids(tokenizer_code.pad_token)
+    roberta_config_code.sep_token_id = tokenizer_code.convert_tokens_to_ids(tokenizer_code.sep_token)
+    roberta_config_code.eos_token_id = tokenizer_code.convert_tokens_to_ids(tokenizer_code.eos_token)
+    roberta_config_code.num_hidden_layers = cfg["model_params"]["n_layers"]
+    code_encoder = RobertaModel(roberta_config_code)
+
+    if cfg["pe_model"] == "random":
+        pass
+    elif cfg["pe_model"] == "sinusoid":
+        sinusoid_pe = get_sinusoid(cfg["training_params"]["block_size_code"], roberta_config_code.hidden_size)
+        pad_id = tokenizer_code.convert_tokens_to_ids(tokenizer_code.pad_token)
+        code_encoder.embeddings.position_embeddings.weight.data[pad_id + 1:, :] = sinusoid_pe
+        code_encoder.embeddings.position_embeddings.weight.requires_grad = False
+    elif cfg["pe_model"] == "gpt2":
+        gpt2_pe = AutoModel.from_pretrained(cfg["pe_model"]).wpe.weight.data[0:cfg["training_params"]["block_size_code"]]
+        pad_id = tokenizer_code.convert_tokens_to_ids(tokenizer_code.pad_token)
+        code_encoder.embeddings.position_embeddings.weight.data[pad_id + 1:, :] = gpt2_pe
+        code_encoder.embeddings.position_embeddings.weight.requires_grad = False
+    elif cfg["pe_model"] == "roberta-base":
+        roberta_pe = AutoModel.from_pretrained(cfg["pe_model"]).embeddings.position_embeddings.weight.data[
+                  2:cfg["training_params"]["block_size_code"] + 2]
+        pad_id = tokenizer_code.convert_tokens_to_ids(tokenizer_code.pad_token)
+        code_encoder.embeddings.position_embeddings.weight.data[pad_id + 1:, :] = roberta_pe
+        code_encoder.embeddings.position_embeddings.weight.requires_grad = False
     model = DualEconderModel(code_encoder, nl_encoder)
     return model
 
 
-def build_model_checkpoint(vocab_size_code, vocab_size_nl, cfg):
-    model = build_model(vocab_size_code, vocab_size_nl, cfg)
+def build_model_checkpoint(tokenizer_code, tokenizer_nl, cfg):
+    model = build_model(tokenizer_code, tokenizer_nl, cfg)
     model.load_state_dict(torch.load(cfg["checkpoint"]))
     return model

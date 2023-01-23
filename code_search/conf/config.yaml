@@ -1,6 +1,6 @@
 seed: 123
 dataset_dir: "dataset"
-lang: "ruby"
+lang_eval: "ruby"
 checkpoint: "test.bin"
 mode: "training"
 pe_model: "random"

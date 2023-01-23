@@ -1,4 +1,4 @@
-batch_size_train: 32
+batch_size_train: 16
 batch_size_eval: 64
 block_size_nl: 256
 block_size_code: 256
